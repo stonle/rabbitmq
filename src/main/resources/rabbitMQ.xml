@@ -7,7 +7,47 @@
      http://www.springframework.org/schema/rabbit  
      http://www.springframework.org/schema/rabbit/spring-rabbit-1.2.xsd">
    
-    <!--1、配置connection-factory，指定连接rabbit server参数 -->
+    <!--1、配置connection-factory，指定连接rabbit server参数  ，可以指定channel-cache-size-->
     <rabbit:connection-factory id="connectionFactory" virtual-host="/" username="guest"
-     password="guest" host="localhost" port="5672"/>
+     password="guest" host="localhost" port="5672" channel-cache-size="32"/>
+     
+     
+    <!--2、通过指定下面的admin信息，当前producer中的exchange和queue会在rabbitmq服务器上自动生成 -->
+    <rabbit:admin id="connectAdmin" connection-factory="connectionFactory"/>
+    <!--3、 定义队列 -->
+    <rabbit:queue name="funoutTest" auto-declare="true" auto-delete="false" exclusive="false" declared-by="connectAdmin"/>
+    
+    <rabbit:queue name="directTest" auto-declare="true" auto-delete="false" exclusive="false" declared-by="connectAdmin"/>
+    
+    <rabbit:queue name="topicTest" auto-declare="true" auto-delete="false" exclusive="false" declared-by="connectAdmin"/>
+    <!--4、 定义交换机 ,并绑定队列-->
+    <rabbit:direct-exchange name="directExchange">
+        <rabbit:bindings>
+            <rabbit:binding queue="directTest" key="directTest"/>
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+    
+    <rabbit:direct-exchange name="topicExchange">
+	     <rabbit:bindings>
+	         <rabbit:binding queue="topicTest" key="topicTest"/>
+	     </rabbit:bindings>
+    </rabbit:direct-exchange>
+    <!--5、定义rabbit template用于数据的接收和发送   exchange:不指定,则会所有的交换机都会添加-->
+    <rabbit:template id="rabTemplate" connection-factory="connectionFactory"/>
+    <!-- 消息生产者 -->
+    <bean id="producer" class="com.producer.MessageProducer"/>
+    <!-- 消息接收者  测试exchange为"funout" -->
+    <bean id="consumer" class="com.consumer.FanoutConsumer"/>
+    <!-- 消息接收者  测试exchange为"direct" -->
+    <bean id="dconsumer" class="com.consumer.DirectConsumer"/>
+    <!-- 消息接收者  测试exchange为"topic" -->
+    <bean id="tconsumer" class="com.consumer.TopicConsumer"/>
+    <!--6、观察 监听模式 当有消息到达时会通知监听在对应的队列上的监听对象 -->
+    <rabbit:listener-container connection-factory="connectionFactory">
+        <rabbit:listener queue-names="funoutTest" ref="consumer" method="onMessage"/>
+        <rabbit:listener queue-names="directTest" ref="dconsumer" method="onMessage"/>
+        <rabbit:listener queue-names="topicTest" ref="tconsumer" method="onMessage"/>
+    </rabbit:listener-container>
+    
+    
  </beans>
